@@ -4,11 +4,18 @@ defmodule LifeCore.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {
-        Registry,
-        key: :unique,
-        name: LifeCore.WorkerRegistry
+      %{
+        id: LifeCore.WorkerRegistry,
+        start:
+          {Registry, :start_link,
+           [
+             [
+               keys: :unique,
+               name: LifeCore.WorkerRegistry
+             ]
+           ]}
       },
+
       {
         DynamicSupervisor,
         strategy: :one_for_one,
@@ -16,7 +23,6 @@ defmodule LifeCore.Application do
       },
 
       LifeCore.Worker.WorkerPool,
-
       LifeCore.Simulation.Scheduler
     ]
 
@@ -25,6 +31,24 @@ defmodule LifeCore.Application do
       name: LifeCore.Supervisor
     ]
 
-    Supervisor.start_link(children, opts)
+    {:ok, pid} = Supervisor.start_link(children, opts)
+
+    register_workers()
+
+    {:ok, pid}
+  end
+
+  defp register_workers do
+    workers = Application.get_env(:life_core, :workers, [])
+
+    Enum.each(workers, fn worker ->
+      {:ok, _pid} =
+        LifeCore.Worker.WorkerPool.start_worker(
+          id: worker.id,
+          language: worker.language,
+          executable: worker.executable,
+          scheduler: LifeCore.Simulation.Scheduler
+        )
+    end)
   end
 end

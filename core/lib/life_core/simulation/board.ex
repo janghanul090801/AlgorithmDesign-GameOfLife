@@ -3,7 +3,7 @@ defmodule LifeCore.Simulation.Board do
 
   defstruct [
     :width,
-    :hegith,
+    :height,
     :cells
   ]
 
@@ -28,12 +28,12 @@ defmodule LifeCore.Simulation.Board do
       }
   end
 
-  def set_alive(board,x,y,alive \\ true) when valid_position?(board,x,y) do
-    %{board | cells: Map.put(board.cells, {{x,y}, alive})}
-  end
-
   def set_alive(board, x, y, alive \\ true) do
+    if valid_position?(board,x,y) do
+      %{board | cells: Map.put(board.cells, {x,y}, alive)}
+    else
       board
+    end
   end
 
   def alive?(board, x, y) do
@@ -59,11 +59,18 @@ defmodule LifeCore.Simulation.Board do
     x >= 0 and x < board.width and y >= 0 and y < board.height
   end
 
-  def to_map(board) do
+  def to_protocol(board) do
+    cells =
+      for y <- 0..(board.height - 1) do
+        for x <- 0..(board.width - 1) do
+          alive?(board, x, y)
+        end
+      end
+
     %{
       width: board.width,
       height: board.height,
-      cells: board.cells
+      cells: cells
     }
   end
 end

@@ -15,6 +15,7 @@ defmodule LifeCore.Job.CellJob do
     :generation,
     :x,
     :y,
-    :current
+    :current,
+    :board
   ]
 end

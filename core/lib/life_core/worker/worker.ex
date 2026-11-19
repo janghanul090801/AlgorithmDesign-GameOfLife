@@ -5,7 +5,7 @@ defmodule LifeCore.Worker do
     :id,
     :language,
     :pid,
-    :status
+    :scheduler
   ]
 
   def start_link(opts) do
@@ -30,14 +30,14 @@ defmodule LifeCore.Worker do
     {:ok, port_worker} = LifeCore.Worker.PortWorker.start_link(
       id: id,
       executable: executable,
-      scheduler: scheduler
+      worker: self()
     )
 
     state = %__MODULE__{
       id: id,
       language: language,
       pid: port_worker,
-      status: :idle
+      scheduler: scheduler
     }
 
     send(scheduler, {
@@ -53,6 +53,36 @@ defmodule LifeCore.Worker do
   def handle_cast({:assign, job}, state) do
     LifeCore.Worker.PortWorker.send_job(state.pid, job)
 
-    {:noreply, %{state | status: :busy}}
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:worker_result, worker_id, result}, state) do
+    send(
+      state.scheduler,
+      {:worker_result, worker_id, result}
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:worker_error, worker_id, reason}, state) do
+    send(
+      state.scheduler,
+      {:worker_error, worker_id, reason}
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:worker_exit, worker_id, status}, state) do
+    send(
+      state.scheduler,
+      {:worker_exit, worker_id, status}
+    )
+
+    {:stop, :normal, state}
   end
 end

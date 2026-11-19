@@ -33,6 +33,6 @@ defmodule LifeCore.Job.JobQueue do
   end
 
   def size(%__MODULE__{} = queue) do
-    :queue.size(queue.queue)
+    :queue.len(queue.queue)
   end
 end
