@@ -1,0 +1,4 @@
+{
+  "build": ["cmd", "/c", "gradlew.bat", "build"],
+  "command": ["./.jdk/bin/java.exe", "-jar", "app/build/libs/app.jar"]
+}

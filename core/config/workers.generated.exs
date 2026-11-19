@@ -9,6 +9,12 @@ config :life_core,
       cd: "../workers/go"
     },
     %{
+      id: "java",
+      language: :java,
+      command: ["./.jdk/bin/java.exe", "-jar", "app/build/libs/app.jar"],
+      cd: "../workers/java"
+    },
+    %{
       id: "ruby",
       language: :ruby,
       command: ["ruby", "./main.rb"],
