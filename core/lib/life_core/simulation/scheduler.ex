@@ -9,8 +9,10 @@ defmodule LifeCore.Simulation.Scheduler do
   defstruct [
     :board,
     :generation,
+    :delay,
     :queue,
     :results,
+    :processed,
     :next_job_id
   ]
 
@@ -36,14 +38,23 @@ defmodule LifeCore.Simulation.Scheduler do
     )
   end
 
+  def set_delay(delay) when is_integer(delay) and delay >= 0 do
+    GenServer.call(
+      __MODULE__,
+      {:set_delay, delay}
+    )
+  end
+
   @impl true
   def init(_) do
     {:ok,
      %__MODULE__{
        board: nil,
        generation: 0,
+       delay: 0,
        queue: JobQueue.new(),
        results: %{},
+       processed: %{},
        next_job_id: 0
      }}
   end
@@ -66,6 +77,7 @@ defmodule LifeCore.Simulation.Scheduler do
       | board: board,
         queue: queue,
         results: %{},
+        processed: %{},
         next_job_id: next_job_id
     }
 
@@ -81,6 +93,11 @@ defmodule LifeCore.Simulation.Scheduler do
   end
 
   @impl true
+  def handle_call({:set_delay, delay}, _from, state) do
+    {:reply, :ok, %{state | delay: delay}}
+  end
+
+  @impl true
   def handle_info(
         {:worker_ready, _worker_id, _pid},
         state
@@ -89,9 +106,9 @@ defmodule LifeCore.Simulation.Scheduler do
   end
 
   def handle_info(
-      {:worker_result, worker_id, result},
-      state
-    ) do
+        {:worker_result, worker_id, language, result},
+        state
+      ) do
     results =
       Map.put(
         state.results,
@@ -99,11 +116,20 @@ defmodule LifeCore.Simulation.Scheduler do
         result
       )
 
+    processed =
+      Map.update(
+        state.processed,
+        language,
+        1,
+        &(&1 + 1)
+      )
+
     WorkerPool.worker_finished(worker_id)
 
     state = %{
       state
-      | results: results
+      | results: results,
+        processed: processed
     }
 
     state = dispatch_jobs(state)
@@ -117,14 +143,9 @@ defmodule LifeCore.Simulation.Scheduler do
 
   @impl true
   def handle_info(
-        {:worker_error, worker_id, reason},
+        {:worker_error, worker_id, _reason},
         state
       ) do
-    IO.inspect(
-      reason,
-      label: "Worker #{worker_id} error"
-    )
-
     WorkerPool.worker_finished(worker_id)
 
     {:noreply, dispatch_jobs(state)}
@@ -132,13 +153,9 @@ defmodule LifeCore.Simulation.Scheduler do
 
   @impl true
   def handle_info(
-        {:worker_exit, worker_id, status},
+        {:worker_exit, _worker_id, _status},
         state
       ) do
-    IO.puts(
-      "Worker #{worker_id} exited with status #{status}"
-    )
-
     {:noreply, state}
   end
 
@@ -219,23 +236,15 @@ defmodule LifeCore.Simulation.Scheduler do
   end
 
   defp finish_generation(state) do
-    IO.puts(
-      "Generation #{state.generation} completed"
-    )
-
     next_board =
       build_next_board(
         state.board,
         state.results
       )
 
-    IO.puts(
-      "Starting generation #{state.generation + 1}"
-    )
-
-    send(
-      self(),
-      {:start_next_generation, next_board}
+    schedule_next_generation(
+      next_board,
+      state.delay
     )
 
     %{
@@ -244,6 +253,21 @@ defmodule LifeCore.Simulation.Scheduler do
         generation: state.generation + 1,
         results: %{}
     }
+  end
+
+  defp schedule_next_generation(board, 0) do
+    send(
+      self(),
+      {:start_next_generation, board}
+    )
+  end
+
+  defp schedule_next_generation(board, delay) when delay > 0 do
+    Process.send_after(
+      self(),
+      {:start_next_generation, board},
+      delay
+    )
   end
 
   defp build_next_board(

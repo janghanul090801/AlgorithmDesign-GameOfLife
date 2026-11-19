@@ -1,0 +1,4 @@
+{
+  "build": ["cargo", "build", "--release"],
+  "command": ["./target/release/life-rust-worker.exe"]
+}

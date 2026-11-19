@@ -1,0 +1,3 @@
+{
+    "command": ["ruby", "./main.rb"]
+}

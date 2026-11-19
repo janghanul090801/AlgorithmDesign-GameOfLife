@@ -24,14 +24,17 @@ defmodule LifeCore.Worker do
   def init(opts) do
     id = Keyword.fetch!(opts, :id)
     language = Keyword.fetch!(opts, :language)
-    executable = Keyword.fetch!(opts, :executable)
     scheduler = Keyword.fetch!(opts, :scheduler)
 
-    {:ok, port_worker} = LifeCore.Worker.PortWorker.start_link(
-      id: id,
-      executable: executable,
-      worker: self()
-    )
+    {:ok, port_worker} =
+      LifeCore.Worker.PortWorker.start_link(
+        id: id,
+        program: Keyword.fetch!(opts, :program),
+        args: Keyword.get(opts, :args, []),
+        cd: Keyword.get(opts, :cd),
+        env: Keyword.get(opts, :env, %{}),
+        worker: self()
+      )
 
     state = %__MODULE__{
       id: id,
@@ -60,7 +63,7 @@ defmodule LifeCore.Worker do
   def handle_info({:worker_result, worker_id, result}, state) do
     send(
       state.scheduler,
-      {:worker_result, worker_id, result}
+      {:worker_result, worker_id, state.language, result}
     )
 
     {:noreply, state}

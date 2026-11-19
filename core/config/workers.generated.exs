@@ -5,11 +5,19 @@ config :life_core,
     %{
       id: "go",
       language: :go,
-      executable: "../workers/go/go.exe"
+      command: ["./go.exe"],
+      cd: "../workers/go"
+    },
+    %{
+      id: "ruby",
+      language: :ruby,
+      command: ["ruby", "./main.rb"],
+      cd: "../workers/ruby"
     },
     %{
       id: "rust",
       language: :rust,
-      executable: "../workers/rust/target/release/life-rust-worker.exe"
+      command: ["./target/release/life-rust-worker.exe"],
+      cd: "../workers/rust"
     }
   ]
